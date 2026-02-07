@@ -4,7 +4,6 @@ const jwt = require("jsonwebtoken");
 const cors = require("cors");
 
 const connectDB = require("./config/db");
-const Actress = require("./model/actress");
 const User = require("./model/users");
 const House = require("./model/house");
 
@@ -15,30 +14,7 @@ app.use(cors());
 
 connectDB();
 
-/* ======================
-   GET — barcha aktrisalar
-====================== */
-app.get("/actresses", async (req, res) => {
-  try {
-    const actresses = await Actress.find();
-    res.json(actresses);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
 
-/* ======================
-   POST — yangi aktrisa
-====================== */
-app.post("/actresses", async (req, res) => {
-  try {
-    const actress = new Actress(req.body);
-    const savedActress = await actress.save();
-    res.status(201).json(savedActress);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-});
 
 /* =====================
    AUTH – REGISTER
