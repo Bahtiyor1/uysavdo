@@ -1,24 +1,81 @@
+// server.js
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const swaggerUi = require("swagger-ui-express");
+const swaggerSpec = require("./swagger");
 const cors = require("cors");
 
 const connectDB = require("./config/db");
 const User = require("./model/users");
 const House = require("./model/house");
 
-
 const app = express();
+
+// middlewares
 app.use(express.json());
-app.use(cors());
+app.use(
+  cors({
+    origin: "*", // for testing; in prod лучше указать домен фронта
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
+// ✅ OpenAPI JSON with correct host (Render / local)
+app.get("/docs.json", (req, res) => {
+  const host = req.get("host");
+  const proto = req.headers["x-forwarded-proto"] || req.protocol;
+
+  res.json({
+    ...swaggerSpec,
+    servers: [{ url: `${proto}://${host}` }],
+  });
+});
+
+// ✅ Swagger UI (global)
+app.use(
+  "/docs",
+  swaggerUi.serve,
+  swaggerUi.setup(null, {
+    swaggerOptions: { url: "/docs.json" },
+  })
+);
+
+// DB connect
 connectDB();
-
-
 
 /* =====================
    AUTH – REGISTER
 ===================== */
+/**
+ * @swagger
+ * /auth/register:
+ *   post:
+ *     summary: Register new user
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [login, password]
+ *             properties:
+ *               login:
+ *                 type: string
+ *                 example: admin
+ *               password:
+ *                 type: string
+ *                 example: 123456
+ *     responses:
+ *       201:
+ *         description: User registered
+ *       400:
+ *         description: Validation error
+ *       500:
+ *         description: Server error
+ */
 app.post("/auth/register", async (req, res) => {
   try {
     let { login, password } = req.body;
@@ -57,6 +114,34 @@ app.post("/auth/register", async (req, res) => {
 /* =====================
    AUTH – LOGIN
 ===================== */
+/**
+ * @swagger
+ * /auth/login:
+ *   post:
+ *     summary: Login user (returns JWT token)
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [login, password]
+ *             properties:
+ *               login:
+ *                 type: string
+ *                 example: admin
+ *               password:
+ *                 type: string
+ *                 example: 123456
+ *     responses:
+ *       200:
+ *         description: Login success
+ *       400:
+ *         description: Wrong login/password or validation error
+ *       500:
+ *         description: Server error
+ */
 app.post("/auth/login", async (req, res) => {
   try {
     let { login, password } = req.body;
@@ -98,6 +183,25 @@ app.post("/auth/login", async (req, res) => {
    /houses
    /houses?status=gold
 ====================== */
+/**
+ * @swagger
+ * /houses:
+ *   get:
+ *     summary: Get all houses (optional filter by status)
+ *     tags: [Houses]
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           example: gold
+ *         description: Filter by status (use "all" to disable filter)
+ *     responses:
+ *       200:
+ *         description: List of houses
+ *       500:
+ *         description: Server error
+ */
 app.get("/houses", async (req, res) => {
   try {
     const { status } = req.query;
@@ -119,6 +223,58 @@ app.get("/houses", async (req, res) => {
    POST — yangi uy qo‘shish
    POST /houses
 ====================== */
+/**
+ * @swagger
+ * /houses:
+ *   post:
+ *     summary: Create a new house
+ *     tags: [Houses]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [image, name, price, rooms, year, area]
+ *             properties:
+ *               image:
+ *                 type: string
+ *                 example: https://picsum.photos/300/200
+ *               name:
+ *                 type: string
+ *                 example: Yunusobod 15-kvar...
+ *               category:
+ *                 type: string
+ *                 example: Apartment
+ *               price:
+ *                 type: number
+ *                 example: 172000
+ *               currency:
+ *                 type: string
+ *                 example: USD
+ *               rooms:
+ *                 type: number
+ *                 example: 3
+ *               year:
+ *                 type: number
+ *                 example: 2025
+ *               area:
+ *                 type: number
+ *                 example: 100
+ *               areaUnit:
+ *                 type: string
+ *                 example: kv
+ *               status:
+ *                 type: string
+ *                 example: gold
+ *     responses:
+ *       201:
+ *         description: House created
+ *       400:
+ *         description: Validation error
+ *       500:
+ *         description: Server error
+ */
 app.post("/houses", async (req, res) => {
   try {
     const {
@@ -134,7 +290,6 @@ app.post("/houses", async (req, res) => {
       status,
     } = req.body;
 
-    // минимальная валидация
     if (!image || !name || !price || !rooms || !year || !area) {
       return res.status(400).json({
         message: "Majburiy maydonlar to‘ldirilmagan",
@@ -163,12 +318,11 @@ app.post("/houses", async (req, res) => {
   }
 });
 
-
-
 /* ======================
    SERVER START
 ====================== */
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server ${PORT} portda ishlayapti 🚀`);
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server running on ${PORT}`);
 });
